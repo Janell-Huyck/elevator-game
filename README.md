@@ -1,6 +1,11 @@
 # elevator-game
 ## My solutions to play.elevatorsaga.com
 
+play.elevatorsaga.com is an online coding game where you are writing the code to
+make an elevator or elevators operate correctly.  The object is to move a certain 
+number of passengers within a set time limit.  Each level is progressively more 
+difficult and complex.  
+
 I was introduced to play.elevatorsaga.com by a friend.  We started working 
 together on solutions, and then split off into doing separate solutions.  
 This repo was created to keep track of mine.
