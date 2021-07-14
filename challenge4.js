@@ -1,81 +1,122 @@
 {
+
+    //******************************
+    // Stopping point: bug in code - I was trying to dynamically add multiple elevators to state at 
+    // start of the code.
+    // *****************************
     init: function(elevators, floors) {
+
         console.log("=========================")
         console.log("   Starting new run     ")
         console.log("=========================")
 
-        elevator1 = elevators[0]
-        elevator2 = elevators[1]
         bottomFloor = 0
         console.log("Bottom floor is: ", bottomFloor)
         topFloor = floors.length - 1
         console.log("Top floor is: ", topFloor)
-        elevatorMostlyFullLevel = 0.7   // elevator.loadCapacity == 1 means the elevator is completely full.  
+        elevatorMostlyFullLevel = 0.5   // elevator.loadCapacity == 1 means the elevator is completely full.  
 
+        
         let state = {
             "upRequestQueue": [],
             "downRequestQueue": [],
-            "elevator1": {
-                "direction" :"up",
-                "defaultFloor" : 1,
-                "callPriorities" : ["up", "down"]
-            },
-            "elevator2": {
-                "direction" :"up",
-                "defaultFloor" : 4,
-                "callPriorities" : ["up", "down"],
-            },
         }
 
-        const callEmptyElevator = function (floorNum) {
-            // After a floor button press, if there is an empty elevator, send it to that floor.
-
-            el1QueueLen = elevator1.destinationQueue.length
-            el2QueueLen = elevator2.destinationQueue.length
-            if (el1QueueLen == 0) {
-                elevator1.goToFloor(floorNum)
-                // console.log("just called elevator1 and its destination queue is: ", elevator1.destinationQueue)
-            } else if (el2QueueLen == 0) {
-                elevator2.goToFloor(floorNum)
-                // console.log("just called elevator2 and its destination queue is: ", elevator2.destinationQueue)
+        
+        const setInitialStateValues = function (elevator) {
+            describedElevator = describeElevator(elevator)
+            elevatorIndex = elevators.indexOf(elevator)
+            
+            state = state += (describedElevator = {"direction": "up", "callPriorities": []})
+            
+            if (elevatorIndex % 2 == 0) {
+                state[describedElevator][callPriorities] = ["up", "down"]
             } else {
-                console.log("no elevators were free so none were called for this button push in function callEmptyElevator")
+                state[describedElevator][callPriorities] = ["down", "up"]
             }
+        }
+        
+
+        const callEmptyElevator = function (floorNum) {
+            // Loop through all elevators and send the first empty one to the floor number given
+
+            for (i = 0; i < elevators.length; i++) {
+                elevator = elevators[i]
+                removeEmptyValuesFromQueue(elevator.destinationQueue)
+                elevator.checkDestinationQueue()
+                if (elevator.destinationQueue.length == 0) {
+                    elevator.goToFloor(floorNum)
+                    setSignalForMovingElevator(elevator, floorNum)
+                    return  // We only need to send 1 elevator to the floor.
+                }
+            }
+            console.log("no elevators were free so none were called for this button push in function callEmptyElevator")
+        }
+
+        const setSignalForMovingElevator = function (elevator) {
+            // When an elevator is moving, set the direction and the signals
+            // to the direction it is actually traveling.
+            describedElevator = describeElevator(elevator)
+            currentFloor = elevator.currentFloor()
+            destinationFloor = elevator.destinationQueue[0]
+
+            if (currentFloor < destinationFloor) {
+                setUpSignal(elevator)
+                updateElevatorDirectionInState(elevator, "up")
+            } else if (currentFloor > destinationFloor) {
+                setDownSignal(elevator)
+                updateElevatorDirectionInState(elevator, "down")
+
+            } else {
+                setBothSignals(elevator)
+            }
+        }
+
+        const setBothSignals = function (elevator) {
+            // sets both the up and down lights on an elevator.  Does not change state direction.
+
+            elevator.goingUpIndicator(true)
+            elevator.goingDownIndicator(true)
         }
 
         const setDownSignal = function (elevator) {
             // Turn on the elevator's down light and turn off the elevator's up light
+            // and update state
 
             elevator.goingUpIndicator(false)
-            elevator.goingDownIndicator()
+            elevator.goingDownIndicator(true)
+            updateElevatorDirectionInState(elevator, "down")
+
         }
 
         const setUpSignal = function (elevator) {
             // Turn on the elevator's up light and turn off the elevator's down light
+            // and update state
 
-            elevator.goingUpIndicator()
+            elevator.goingUpIndicator(true)
             elevator.goingDownIndicator(false)
+            updateElevatorDirectionInState(elevator, "up")
+
         }
 
         const getElevatorDirectionFromState = function(elevator) {
             // Read and return the direction of an elevator from state.  Assumes 2 elevators.
             describedElevator = describeElevator(elevator)
-            console.log("just read ", describeElevator(elevator), "'s direction from state and got: ", state[describedElevator]["direction"])
             return state[describedElevator]["direction"]
         }
 
         const setSignalsForStoppedElevator = function (elevator, floorNum) {
             // Sets the up/down signals for an elevator that's stopped.
-
+            console.log("setting signal for stopped ", describeElevator(elevator)," on floor ", floorNum)
             currentFloor = elevator.currentFloor()
             elevatorDirection = getElevatorDirectionFromState(elevator)
             
             if (currentFloor != floorNum) {
                 console.warn("Tried to set signals for stopped ", describeElevator(elevator), " but it's in between floors.")
                 elevator.goToFloor(floorNum, true)
-            } else if (floorNum == topFloor) {
+            } else if (currentFloor == topFloor) {
                 setDownSignal(elevator)
-            } else if (floorNum == bottomFloor) {
+            } else if (currentFloor == bottomFloor) {
                 setUpSignal(elevator)
             } else if (elevatorDirection == "up") {
                 setUpSignal(elevator)
@@ -84,18 +125,18 @@
             } else {
                 console.warn("No state elevator direction found for ", describeElevator(elevator))
             }
+            console.log("up signal:", elevator.goingUpIndicator(), "down signal: ", elevator.goingDownIndicator())
         }
         
         const describeElevator = function (elevator) {
             // given an instance of an elevator, return its name
             // Useful for setting state of elevators and for console logging.
 
-            if (elevator == elevator1) {
-                return "elevator1"
-            } else if (elevator == elevator2) {
-                return "elevator2"
+            elevatorIndex = elevators.indexOf(elevator)
+            if (elevatorIndex == -1) {
+                return "unknown elevator"
             } else {
-                return "unknownElevator"
+                return "elevator" + (elevatorIndex + 1).toString()
             }
         }
         
@@ -131,7 +172,6 @@
         const stoppingDecision = function (elevator, floorNum) {
             // As an elevator is approaching a floor, decide if it needs to stop there.  Returns true/false
 
-            console.log("checking stopping decision for ", describeElevator(elevator))
             elevatorDirection = getElevatorDirectionFromState(elevator)
 
             if (someoneWantsOff(elevator, floorNum)) {
@@ -156,6 +196,7 @@
                 elevator.destinationQueue.splice(floorIndex, 1)
                 floorIndex = elevator.destinationQueue.indexOf(floorNum)
             }
+            removeEmptyValuesFromQueue(elevator.destinationQueue)
             elevator.checkDestinationQueue()
         }
         
@@ -167,6 +208,7 @@
                 state.upRequestQueue.splice(floorIndex, 1)
                 floorIndex = state.upRequestQueue.indexOf(floorNum)
             }
+            removeEmptyValuesFromQueue(state.upRequestQueue)
         }
         
         const removeFromDownQueue = function (floorNum) {
@@ -177,6 +219,7 @@
                 state.downRequestQueue.splice(floorIndex, 1)
                 floorIndex = state.downRequestQueue.indexOf(floorNum)
             }
+            removeEmptyValuesFromQueue(state.downRequestQueue)
         }
         
         const updateElevatorDirectionInState = function (elevator, direction) {
@@ -199,7 +242,8 @@
 
             floorNum = state.upRequestQueue[0]
             elevator.goToFloor(floorNum)
-            removeFromUpQueue(floorNum)
+            elevator.checkDestinationQueue()
+            // removeFromUpQueue(floorNum)
         }
 
         const addFirstDownPassenger = function (elevator) {
@@ -208,21 +252,37 @@
 
             floorNum = state.downRequestQueue[0]
             elevator.goToFloor(floorNum)
-            removeFromDownQueue(floorNum)
+            elevator.checkDestinationQueue()
+            // removeFromDownQueue(floorNum)
         }
         
+        const removeAllEmptyValuesFromAllRequestQueues = function () {
+            // remove all empty values from request queues in state
+
+            removeEmptyValuesFromQueue(state.upRequestQueue)
+            removeEmptyValuesFromQueue(state.downRequestQueue)
+        }
+
+        const removeAllEmptyValuesFromAllElevators = function () {
+            // remove all empty values from all elevator destination queues
+
+            elevators.forEach(function (elevator) {removeEmptyValuesFromQueue(elevator.destinationQueue)})
+            elevators.forEach(function (elevator) {elevator.checkDestinationQueue()})
+        }
+
         const getNextPassenger = function (elevator) {
             // Does nothing if no floor buttons have been pressed.
             // Otherwise, it selects the first floor in an up or down queue, 
             // sends the elevator there,and removes that floor from the up queue or down queue
+            
+            removeAllEmptyValuesFromAllElevators()
+            removeAllEmptyValuesFromAllRequestQueues()
 
             upRequestsExist = (state.upRequestQueue.length > 0)
             downRequestsExist = (state.downRequestQueue.length > 0)
             describedElevator = describeElevator(elevator)
             callPrioritiesList = state[describedElevator]["callPriorities"]
 
-            removeEmptyValuesFromQueue(state.upRequestQueue)
-            removeEmptyValuesFromQueue(state.downRequestQueue)
 
             if (allQueuesEmpty()) {
                 return
@@ -233,10 +293,12 @@
 
                 if ((callPriority == "up") && upRequestsExist) {
                     addFirstUpPassenger(elevator)
+                    setSignalForMovingElevator(elevator)
                     console.log("GetNextPassenger added floor ", elevator.destinationQueue[0], " to ", describedElevator)
                     return
                 } else if ((callPriority == "down") && downRequestsExist) {
                     addFirstDownPassenger(elevator)
+                    setSignalForMovingElevator(elevator)
                     console.log("GetNextPassenger added floor ", elevator.destinationQueue[0], " to ", describedElevator)
                     return
                 }
@@ -253,14 +315,17 @@
             // sorts an elevator's destination queue based on whether state says it is going up or down
 
             describedElevator = describeElevator(elevator)
-            direction = state[describedElevator]["direction"]
+            direction = getElevatorDirectionFromState(elevator)
 
             if (direction == "up") {
                 elevator.destinationQueue = elevator.destinationQueue.sort((a, b) => a - b)
                 elevator.checkDestinationQueue()
+                setSignalForMovingElevator(elevator)
             } else if (direction == "down") {
                 elevator.destinationQueue = elevator.destinationQueue.sort((a, b) => b - a)
                 elevator.checkDestinationQueue()
+                setSignalForMovingElevator(elevator)
+
             } else {
                 console.warn("No destination direction for sorting in function sortDestinationQueue for ", describedElevator)
             }
@@ -270,18 +335,28 @@
             // if an elevator is stopped, give it something to do.  Either send it to 
             // a floor whose button has been pushed in the elevator or go and
             // get a passenger who is waiting for a ride.
-           removeEmptyValuesFromQueue(elevator.destinationQueue)
-           elevator.checkDestinationQueue()
+            removeEmptyValuesFromQueue(elevator.destinationQueue)
+            elevator.checkDestinationQueue()
+
+            console.log("in restart elevator function, ", describeElevator(elevator),"'s destination queue is: ", elevator.destinationQueue, "before adding anything but after removing empties")
 
             if (elevator.destinationQueue.length == 0) {
                 elevator.destinationQueue = elevator.getPressedFloors()
                 sortDestinationQueue(elevator) // includes checkDestinationQueue()
+                console.log("in restart elevator function, ", describeElevator(elevator),"'s destination queue is: ", elevator.destinationQueue, "after getting pressed floors and sorting")
             }
             
             if (elevator.destinationQueue.length == 0) {
                 getNextPassenger(elevator)
-            } 
-            elevator.goToFloor(elevator.destinationQueue[0])
+                elevator.checkDestinationQueue()
+            }
+           
+            console.log("in restart elevator function, ", describeElevator(elevator),"'s destination queue is: ", elevator.destinationQueue, "after calling getNextPassenger")
+            if (elevator.destinationQueue.length > 0) {
+                elevator.goToFloor(elevator.destinationQueue[0])
+            }
+            console.log("in restart elevator function, ", describeElevator(elevator),"'s destination queue is: ", elevator.destinationQueue, "at the end of the function")
+
         }
         
         const addToDestinationQueue = function (elevator, floorNum) {
@@ -291,26 +366,17 @@
             elevator.destinationQueue.push(floorNum)
             sortDestinationQueue(elevator) // includes checkDestinationQueue()
         }
-        
-        const goToDefaultFloor = function (elevator) {
-            // each elevator has a default floor.  If the elevator is idle, this should
-            // get called to send them to that floor.
-
-            describedElevator = describeElevator(elevator)
-            defaultFloor = state[describedElevator]["defaultFloor"]
-            
-            elevator.goToFloor(defaultFloor)
-            console.log("sending", describedElevator, " to default floor ", defaultFloor)
-        }
-        
+               
         const removeCallsFromFloorAndElevator = function (elevator, floorNum) {
             // Remove the button presses from the floors and from the elevator
             // when a not-full elevator stops at a floor and is going in that direction.
             
+            console.log("removeCallsFromFloorandElevator start - elevator: ", elevator.destinationQueue, " upQueue: ", state.upRequestQueue, ", downQueue: ", state.downRequestQueue, ", floorNum to remove: ", floorNum)
             describedElevator = describeElevator(elevator)
-            elevatorDirection = state[describedElevator]["direction"]
+            elevatorDirection = getElevatorDirectionFromState(elevator)
             
             if (elevator.loadFactor > elevatorMostlyFullLevel) {
+                console.log("aborting removeCallsFromFloorAndElevator because of elevator load factor: ", elevator.loadFactor, " is greater than cutoff: ", elevatorMostlyFullLevel)
                 // assume nobody got on the elevator
                 return
             }
@@ -324,20 +390,21 @@
             }
             removeEmptyValuesFromQueue(elevator.destinationQueue)
             elevator.checkDestinationQueue()
+            console.log("removeCallsFromFloorandElevator finish - elevator: ", elevator.destinationQueue, " upQueue: ", state.upRequestQueue, ", downQueue: ", state.downRequestQueue, ", floorNum to remove: ", floorNum)
+
         }
 
         const removeEmptyValuesFromQueue = function(anyList) {
-            emptyIndex = state.upRequestQueue.indexOf("")
-            while (emptyIndex > -1) {
-                anyList.splice(emptyIndex, 1)
-                emptyIndex = anyList.indexOf("")
+            // Given a list, returns that list with all items that aren't digits removed.
+            if (anyList.length == 0) {
+                return
             }
+            console.log("removeEmptyValuesFromQueue start: ", anyList)
 
-            emptyIndex = state.upRequestQueue.indexOf(NaN)
-            while (emptyIndex > -1) {
-                anyList.splice(emptyIndex, 1)
-                emptyIndex = anyList.indexOf(NaN)
-            }
+            anyList = anyList.filter(n => [0,1,2,3,4,5,6,7,8,9].includes(n))
+            console.log("removeEmptyValuesFromQueue finish: ", anyList)
+
+            return anyList
 
         } 
         
@@ -365,9 +432,13 @@
             })
         })
         
+        elevators.forEach(function(elevator) {setInitialStateValues(elevator)})
+
+        
         elevators.forEach(elevator => {
             // elevators have four events - floor_button_pressed, passing_floor, stopped_at_floor, and idle.
             // sets what to do when these events happen
+
             
             elevator.on("floor_button_pressed", function (floorNum) {
                 // when someone presses a button inside the elevator, add it to the queue
@@ -396,28 +467,27 @@
 
                 setSignalsForStoppedElevator(elevator, floorNum)
                 removeCallsFromFloorAndElevator(elevator, floorNum)
-                console.log(describeElevator(elevator), "has stoppped at floor", floorNum, " and its signals were (up, down) ", elevator.goingUpIndicator(), elevator.goingDownIndicator())
+                console.log(describeElevator(elevator), "has stoppped at floor", floorNum, " and its signals were up: ", elevator.goingUpIndicator(), ", down: ", elevator.goingDownIndicator())
+
                 restartElevator(elevator)
                 console.log(describeElevator(elevator), "'s destination queue is now: ", elevator.destinationQueue, "and it's on the way to floor ", elevator.destinationQueue[0])
             })
             
             elevator.on("idle", function () {
-                // on the rare event that an elevator has nowhere to go, send it to its default floor
+                // on the rare event that an elevator has nowhere to go, do nothing
 
                 if (elevator.currentFloor() === bottomFloor) {
                     setUpSignal(elevator)
                 }
                 console.log(describeElevator(elevator), " is idle")
-                goToDefaultFloor(elevator)
                 if (elevator.destinationQueue.length == 0) {
                     getNextPassenger(elevator)
                 }
             })
         })
-        // ************************
-        // stopping point - a bug in the code is allowing NaN to be added to elevator's destination queues, especially if
-        // they stop at a floor where there is not a person waiting.
-        // ***********************
+
+
+
     },
     update: function(dt, elevators, floors) {
         // We normally don't need to do anything here
