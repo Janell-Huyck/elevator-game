@@ -1,9 +1,4 @@
 {
-
-    //******************************
-    // Stopping point: bug in code - I was trying to dynamically add multiple elevators to state at 
-    // start of the code.
-    // *****************************
     init: function(elevators, floors) {
 
         console.log("=========================")
@@ -15,6 +10,7 @@
         topFloor = floors.length - 1
         console.log("Top floor is: ", topFloor)
         elevatorMostlyFullLevel = 0.5   // elevator.loadCapacity == 1 means the elevator is completely full.  
+        console.log("We have ", elevators.length, " elevators.")
 
         
         let state = {
@@ -22,19 +18,31 @@
             "downRequestQueue": [],
         }
 
+        const describeElevator = function (elevator) {
+            // given an instance of an elevator, return its name
+            // Useful for setting state of elevators and for console logging.
+
+            elevatorIndex = elevators.indexOf(elevator)
+            if (elevatorIndex == -1) {
+                return "unknown elevator"
+            } else {
+                return "elevator" + (elevatorIndex + 1).toString()
+            }
+        }
         
         const setInitialStateValues = function (elevator) {
             describedElevator = describeElevator(elevator)
             elevatorIndex = elevators.indexOf(elevator)
             
-            state = state += (describedElevator = {"direction": "up", "callPriorities": []})
+            state[describedElevator] = {"direction": "up", "callPriorities": []}
             
             if (elevatorIndex % 2 == 0) {
-                state[describedElevator][callPriorities] = ["up", "down"]
+                state[describedElevator]["callPriorities"] = ["up", "down"]
             } else {
-                state[describedElevator][callPriorities] = ["down", "up"]
+                state[describedElevator]["callPriorities"] = ["down", "up"]
             }
         }
+        elevators.forEach(function(elevator) {setInitialStateValues(elevator)})
         
 
         const callEmptyElevator = function (floorNum) {
@@ -50,7 +58,7 @@
                     return  // We only need to send 1 elevator to the floor.
                 }
             }
-            console.log("no elevators were free so none were called for this button push in function callEmptyElevator")
+            // console.log("no elevators were free so none were called for this button push in function callEmptyElevator")
         }
 
         const setSignalForMovingElevator = function (elevator) {
@@ -107,7 +115,7 @@
 
         const setSignalsForStoppedElevator = function (elevator, floorNum) {
             // Sets the up/down signals for an elevator that's stopped.
-            console.log("setting signal for stopped ", describeElevator(elevator)," on floor ", floorNum)
+            // console.log("setting signal for stopped ", describeElevator(elevator)," on floor ", floorNum)
             currentFloor = elevator.currentFloor()
             elevatorDirection = getElevatorDirectionFromState(elevator)
             
@@ -125,20 +133,10 @@
             } else {
                 console.warn("No state elevator direction found for ", describeElevator(elevator))
             }
-            console.log("up signal:", elevator.goingUpIndicator(), "down signal: ", elevator.goingDownIndicator())
+            // console.log("up signal:", elevator.goingUpIndicator(), "down signal: ", elevator.goingDownIndicator())
         }
         
-        const describeElevator = function (elevator) {
-            // given an instance of an elevator, return its name
-            // Useful for setting state of elevators and for console logging.
-
-            elevatorIndex = elevators.indexOf(elevator)
-            if (elevatorIndex == -1) {
-                return "unknown elevator"
-            } else {
-                return "elevator" + (elevatorIndex + 1).toString()
-            }
-        }
+        
         
         const someoneWantsOff = function (elevator, floorNum) {
             // Returns true if a specific floor button has been pushed on an elevator.
@@ -175,16 +173,16 @@
             elevatorDirection = getElevatorDirectionFromState(elevator)
 
             if (someoneWantsOff(elevator, floorNum)) {
-                console.log("Stopping decision at floor ", floorNum, " for ", describeElevator(elevator), " is true because someone wants off")
+                // console.log("Stopping decision at floor ", floorNum, " for ", describeElevator(elevator), " is true because someone wants off")
                 return true
             } else if (elevatorIsFull(elevator)) {
-                console.log("Stopping decision at floor ", floorNum, " for ", describeElevator(elevator), " is false because elevator is full")
+                // console.log("Stopping decision at floor ", floorNum, " for ", describeElevator(elevator), " is false because elevator is full")
                 return false
             } else if (someoneIsWaiting(elevatorDirection, floorNum)) {
-                console.log("Stopping decision at floor ", floorNum, " for ", describeElevator(elevator), " is true because someone is waiting")
+                // console.log("Stopping decision at floor ", floorNum, " for ", describeElevator(elevator), " is true because someone is waiting")
                 return true
             }
-            console.log("Stopping decision at floor ", floorNum, " for ", describeElevator(elevator), " is false because we reached the end of the decision tree (nobody wants off, elevator is not full, and nobody is waiting) up queue is ", state.upRequestQueue, " and down queue is ", state.downRequestQueue, " and direction is ", elevatorDirection)
+            // console.log("Stopping decision at floor ", floorNum, " for ", describeElevator(elevator), " is false because we reached the end of the decision tree (nobody wants off, elevator is not full, and nobody is waiting) up queue is ", state.upRequestQueue, " and down queue is ", state.downRequestQueue, " and direction is ", elevatorDirection)
             return false
         }
         
@@ -294,12 +292,12 @@
                 if ((callPriority == "up") && upRequestsExist) {
                     addFirstUpPassenger(elevator)
                     setSignalForMovingElevator(elevator)
-                    console.log("GetNextPassenger added floor ", elevator.destinationQueue[0], " to ", describedElevator)
+                    // console.log("GetNextPassenger added floor ", elevator.destinationQueue[0], " to ", describedElevator)
                     return
                 } else if ((callPriority == "down") && downRequestsExist) {
                     addFirstDownPassenger(elevator)
                     setSignalForMovingElevator(elevator)
-                    console.log("GetNextPassenger added floor ", elevator.destinationQueue[0], " to ", describedElevator)
+                    // console.log("GetNextPassenger added floor ", elevator.destinationQueue[0], " to ", describedElevator)
                     return
                 }
             }
@@ -328,6 +326,7 @@
 
             } else {
                 console.warn("No destination direction for sorting in function sortDestinationQueue for ", describedElevator)
+                elevator.checkDestinationQueue()
             }
         }
         
@@ -338,12 +337,12 @@
             removeEmptyValuesFromQueue(elevator.destinationQueue)
             elevator.checkDestinationQueue()
 
-            console.log("in restart elevator function, ", describeElevator(elevator),"'s destination queue is: ", elevator.destinationQueue, "before adding anything but after removing empties")
+            // console.log("in restart elevator function, ", describeElevator(elevator),"'s destination queue is: ", elevator.destinationQueue, "before adding anything but after removing empties")
 
             if (elevator.destinationQueue.length == 0) {
                 elevator.destinationQueue = elevator.getPressedFloors()
                 sortDestinationQueue(elevator) // includes checkDestinationQueue()
-                console.log("in restart elevator function, ", describeElevator(elevator),"'s destination queue is: ", elevator.destinationQueue, "after getting pressed floors and sorting")
+                // console.log("in restart elevator function, ", describeElevator(elevator),"'s destination queue is: ", elevator.destinationQueue, "after getting pressed floors and sorting")
             }
             
             if (elevator.destinationQueue.length == 0) {
@@ -351,11 +350,13 @@
                 elevator.checkDestinationQueue()
             }
            
-            console.log("in restart elevator function, ", describeElevator(elevator),"'s destination queue is: ", elevator.destinationQueue, "after calling getNextPassenger")
+            // console.log("in restart elevator function, ", describeElevator(elevator),"'s destination queue is: ", elevator.destinationQueue, "after calling getNextPassenger")
             if (elevator.destinationQueue.length > 0) {
                 elevator.goToFloor(elevator.destinationQueue[0])
+            } else {
+                elevator.goToFloor(0)
             }
-            console.log("in restart elevator function, ", describeElevator(elevator),"'s destination queue is: ", elevator.destinationQueue, "at the end of the function")
+            // console.log("in restart elevator function, ", describeElevator(elevator),"'s destination queue is: ", elevator.destinationQueue, "at the end of the function")
 
         }
         
@@ -371,12 +372,12 @@
             // Remove the button presses from the floors and from the elevator
             // when a not-full elevator stops at a floor and is going in that direction.
             
-            console.log("removeCallsFromFloorandElevator start - elevator: ", elevator.destinationQueue, " upQueue: ", state.upRequestQueue, ", downQueue: ", state.downRequestQueue, ", floorNum to remove: ", floorNum)
+            // console.log("removeCallsFromFloorandElevator start - elevator: ", elevator.destinationQueue, " upQueue: ", state.upRequestQueue, ", downQueue: ", state.downRequestQueue, ", floorNum to remove: ", floorNum)
             describedElevator = describeElevator(elevator)
             elevatorDirection = getElevatorDirectionFromState(elevator)
             
             if (elevator.loadFactor > elevatorMostlyFullLevel) {
-                console.log("aborting removeCallsFromFloorAndElevator because of elevator load factor: ", elevator.loadFactor, " is greater than cutoff: ", elevatorMostlyFullLevel)
+                // console.log("aborting removeCallsFromFloorAndElevator because of elevator load factor: ", elevator.loadFactor, " is greater than cutoff: ", elevatorMostlyFullLevel)
                 // assume nobody got on the elevator
                 return
             }
@@ -390,7 +391,7 @@
             }
             removeEmptyValuesFromQueue(elevator.destinationQueue)
             elevator.checkDestinationQueue()
-            console.log("removeCallsFromFloorandElevator finish - elevator: ", elevator.destinationQueue, " upQueue: ", state.upRequestQueue, ", downQueue: ", state.downRequestQueue, ", floorNum to remove: ", floorNum)
+            // console.log("removeCallsFromFloorandElevator finish - elevator: ", elevator.destinationQueue, " upQueue: ", state.upRequestQueue, ", downQueue: ", state.downRequestQueue, ", floorNum to remove: ", floorNum)
 
         }
 
@@ -399,10 +400,10 @@
             if (anyList.length == 0) {
                 return
             }
-            console.log("removeEmptyValuesFromQueue start: ", anyList)
+            // console.log("removeEmptyValuesFromQueue start: ", anyList)
 
             anyList = anyList.filter(n => [0,1,2,3,4,5,6,7,8,9].includes(n))
-            console.log("removeEmptyValuesFromQueue finish: ", anyList)
+            // console.log("removeEmptyValuesFromQueue finish: ", anyList)
 
             return anyList
 
@@ -418,7 +419,7 @@
                 floorNum = floor.floorNum()
                 newUpRequestQueue = [...new Set([...state.upRequestQueue, floorNum])]   //repeated pressing of button doesn't change the queue
                 state.upRequestQueue = newUpRequestQueue
-                console.log("up was pressed on floor ", floorNum, ".  upRequestQueue is now: ", state.upRequestQueue)
+                // console.log("up was pressed on floor ", floorNum, ".  upRequestQueue is now: ", state.upRequestQueue)
                 callEmptyElevator(floorNum)
             })
             floor.on("down_button_pressed", function () {
@@ -427,12 +428,12 @@
                 floorNum = floor.floorNum()
                 newDownRequestQueue = [...new Set([...state.downRequestQueue, floorNum])]   //repeated pressing of button doesn't change the queue
                 state.downRequestQueue = newDownRequestQueue
-                console.log("down was pressed on floor ", floorNum, "  downRequestQueue is now: ", state.downRequestQueue)
+                // console.log("down was pressed on floor ", floorNum, "  downRequestQueue is now: ", state.downRequestQueue)
                 callEmptyElevator(floorNum)
             })
         })
         
-        elevators.forEach(function(elevator) {setInitialStateValues(elevator)})
+        
 
         
         elevators.forEach(elevator => {
@@ -444,8 +445,8 @@
                 // when someone presses a button inside the elevator, add it to the queue
 
                 addToDestinationQueue(elevator, floorNum)
-                console.log("button", floorNum, " pressed in elevator:", describeElevator(elevator), "while on floor ", elevator.currentFloor())
-                console.log("its new destination queue is: ", elevator.destinationQueue, "and its direction is: ", elevator.destinationDirection())
+                // console.log("button", floorNum, " pressed in elevator:", describeElevator(elevator), "while on floor ", elevator.currentFloor())
+                // console.log("its new destination queue is: ", elevator.destinationQueue, "and its direction is: ", elevator.destinationDirection())
             })
             
             elevator.on("passing_floor", function (floorNum, direction) {
@@ -454,7 +455,7 @@
                 updateElevatorDirectionInState(elevator, direction)
                 shouldStop = stoppingDecision(elevator, floorNum)
                 if (shouldStop == true) {
-                    console.log(describeElevator(elevator), "decided to stop at floor ", floorNum)
+                    // console.log(describeElevator(elevator), "decided to stop at floor ", floorNum)
                     elevator.stop()
                     elevator.goToFloor(floorNum, true)
                     restartElevator(elevator)
@@ -467,10 +468,10 @@
 
                 setSignalsForStoppedElevator(elevator, floorNum)
                 removeCallsFromFloorAndElevator(elevator, floorNum)
-                console.log(describeElevator(elevator), "has stoppped at floor", floorNum, " and its signals were up: ", elevator.goingUpIndicator(), ", down: ", elevator.goingDownIndicator())
+                // console.log(describeElevator(elevator), "has stoppped at floor", floorNum, " and its signals were up: ", elevator.goingUpIndicator(), ", down: ", elevator.goingDownIndicator())
 
                 restartElevator(elevator)
-                console.log(describeElevator(elevator), "'s destination queue is now: ", elevator.destinationQueue, "and it's on the way to floor ", elevator.destinationQueue[0])
+                // console.log(describeElevator(elevator), "'s destination queue is now: ", elevator.destinationQueue, "and it's on the way to floor ", elevator.destinationQueue[0])
             })
             
             elevator.on("idle", function () {
@@ -479,7 +480,7 @@
                 if (elevator.currentFloor() === bottomFloor) {
                     setUpSignal(elevator)
                 }
-                console.log(describeElevator(elevator), " is idle")
+                // console.log(describeElevator(elevator), " is idle")
                 if (elevator.destinationQueue.length == 0) {
                     getNextPassenger(elevator)
                 }
